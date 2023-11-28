@@ -10,6 +10,11 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  zipkin:
+    base-url: http://localhost:9411
+  sleuth:
+    sampler:
+      probability: 1.0
 server:
   port: 8081
   error:
@@ -17,4 +22,4 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka:eureka@localhost:8761/eureka
