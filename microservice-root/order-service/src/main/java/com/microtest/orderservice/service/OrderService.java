@@ -1,6 +1,7 @@
 package com.microtest.orderservice.service;
 
 import com.microtest.orderservice.dto.*;
+import com.microtest.orderservice.event.OrderPlacedEvent;
 import com.microtest.orderservice.model.Order;
 import com.microtest.orderservice.model.OrderedItem;
 import com.microtest.orderservice.repository.OrderRepository;
@@ -11,10 +12,10 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
@@ -28,6 +29,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
     private final Tracer tracer;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     public ResponseEntity<AppResponse> createOrder(OrderRequest orderRequest) {
         Order order = new Order();
@@ -58,6 +60,10 @@ public class OrderService {
 
             if(isAllProductInStock){
                 orderRepository.save(order);
+
+                //Emit message
+                kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
+
                 return new ResponseEntity<>(AppResponse.builder()
                         .message("Create new order successfully!").build(),
                         HttpStatus.CREATED);
@@ -69,8 +75,6 @@ public class OrderService {
         } finally {
             inventoryServiceLookup.end();
         }
-
-
     }
 
     private OrderedItem mappingToOrder(OrderedItemDto orderedItemDto) {
